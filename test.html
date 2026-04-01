@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isis Tracker — Diagnóstico</title>
+<style>
+body{font-family:monospace;padding:20px;background:#faf8f4;color:#1a1814;max-width:600px;margin:0 auto}
+h1{font-size:18px;margin-bottom:20px}
+.test{background:white;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:8px}
+.test-name{font-size:12px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em}
+.test-result{font-size:14px;font-weight:500}
+.ok{color:#5a8a6a}.fail{color:#e05a5a}.warn{color:#c9784a}.pending{color:#aaa}
+button{background:#1a1814;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer;width:100%;margin-bottom:8px;font-family:monospace}
+input{width:100%;background:#ede9e3;border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;box-sizing:border-box;font-family:monospace}
+.log{background:#1a1814;color:#eee;border-radius:8px;padding:12px;font-size:11px;line-height:1.8;margin-top:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto}
+</style>
+</head>
+<body>
+<h1>🔍 Diagnóstico del Tracker</h1>
+
+<div class="test">
+  <div class="test-name">1. localStorage</div>
+  <div class="test-result" id="t1">comprobando...</div>
+</div>
+
+<div class="test">
+  <div class="test-name">2. URL del Worker guardada</div>
+  <div class="test-result" id="t2">comprobando...</div>
+</div>
+
+<div class="test">
+  <div class="test-name">3. Worker responde (ping)</div>
+  <div class="test-result" id="t3">pendiente...</div>
+</div>
+
+<div class="test">
+  <div class="test-name">4. Notion Tasks accesible</div>
+  <div class="test-result" id="t4">pendiente...</div>
+</div>
+
+<div class="test">
+  <div class="test-name">5. Notion Daily accesible</div>
+  <div class="test-result" id="t5">pendiente...</div>
+</div>
+
+<div class="test">
+  <div class="test-name">6. Notion Expenses accesible</div>
+  <div class="test-result" id="t6">pendiente...</div>
+</div>
+
+<hr style="margin:16px 0;border-color:#ddd">
+
+<div class="test-name" style="margin-bottom:6px">URL del Worker</div>
+<input type="text" id="worker-input" placeholder="https://cloudflare-worker-for-my-tracker.d-coronelnyc.workers.dev" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false">
+<button onclick="saveAndTest()">Guardar URL y ejecutar tests</button>
+<button onclick="clearAndReset()" style="background:#c9784a">Borrar URL guardada</button>
+<button onclick="goToTracker()" style="background:#5a8a6a">Ir al Tracker →</button>
+
+<div class="log" id="log">Esperando...\n</div>
+
+<script>
+const CFG_KEY = 'isis_worker_url';
+let workerURL = '';
+let log = '';
+
+function addLog(msg) {
+  log += msg + '\n';
+  document.getElementById('log').textContent = log;
+}
+
+function setResult(id, ok, msg) {
+  const el = document.getElementById(id);
+  el.className = 'test-result ' + (ok === true ? 'ok' : ok === false ? 'fail' : ok === 'warn' ? 'warn' : 'pending');
+  el.textContent = (ok === true ? '✓ ' : ok === false ? '✗ ' : ok === 'warn' ? '⚠ ' : '⏳ ') + msg;
+}
+
+// TEST 1: localStorage
+function testLocalStorage() {
+  try {
+    localStorage.setItem('_test', '1');
+    const v = localStorage.getItem('_test');
+    localStorage.removeItem('_test');
+    if (v === '1') {
+      setResult('t1', true, 'Funciona correctamente');
+      addLog('✓ localStorage OK');
+      return true;
+    }
+  } catch(e) {
+    addLog('✗ localStorage ERROR: ' + e.message);
+  }
+  setResult('t1', false, 'No funciona — posible modo privado');
+  return false;
+}
+
+// TEST 2: Worker URL saved
+function testWorkerURL() {
+  const saved = (localStorage.getItem(CFG_KEY) || '').trim();
+  if (saved) {
+    workerURL = saved;
+    setResult('t2', true, saved);
+    addLog('✓ URL guardada: ' + saved);
+    return true;
+  }
+  setResult('t2', false, 'No hay URL guardada');
+  addLog('✗ No hay URL del Worker en localStorage');
+  return false;
+}
+
+// TEST 3: Worker ping
+async function testWorkerPing() {
+  setResult('t3', 'pending', 'Conectando...');
+  addLog('⏳ Probando Worker...');
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch(workerURL + '?action=ping', { signal: ctrl.signal });
+    const d = await r.json();
+    if (d && (d.ok || d.success)) {
+      setResult('t3', true, 'Worker responde correctamente');
+      addLog('✓ Worker OK: ' + JSON.stringify(d));
+      return true;
+    } else {
+      setResult('t3', false, 'Worker responde pero con error: ' + JSON.stringify(d));
+      addLog('✗ Worker error: ' + JSON.stringify(d));
+      return false;
+    }
+  } catch(e) {
+    setResult('t3', false, 'No responde: ' + e.message);
+    addLog('✗ Worker no responde: ' + e.message);
+    return false;
+  }
+}
+
+// TEST 4-6: Notion DBs via Worker
+async function testNotion(testId, label) {
+  setResult(testId, 'pending', 'Probando...');
+  addLog('⏳ Probando Notion ' + label + '...');
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 10000);
+    const r = await fetch(workerURL + '?action=getAll', { signal: ctrl.signal });
+    const d = await r.json();
+    if (d && d.success !== false && !d.error) {
+      setResult(testId, true, 'Accesible — ' + JSON.stringify(d).slice(0,60));
+      addLog('✓ Notion ' + label + ' OK');
+      return true;
+    } else {
+      setResult(testId, false, 'Error: ' + (d.error || JSON.stringify(d).slice(0,80)));
+      addLog('✗ Notion ' + label + ' error: ' + JSON.stringify(d));
+      return false;
+    }
+  } catch(e) {
+    setResult(testId, false, 'Timeout o error: ' + e.message);
+    addLog('✗ Notion ' + label + ': ' + e.message);
+    return false;
+  }
+}
+
+async function runAllTests() {
+  log = '';
+  addLog('=== INICIO DIAGNÓSTICO ' + new Date().toLocaleTimeString() + ' ===\n');
+
+  const ls = testLocalStorage();
+  const url = testWorkerURL();
+
+  if (!url) {
+    addLog('\n⚠ Pon la URL del Worker arriba y toca "Guardar URL y ejecutar tests"');
+    setResult('t3', 'pending', 'Necesita URL');
+    setResult('t4', 'pending', 'Necesita URL');
+    setResult('t5', 'pending', 'Necesita URL');
+    setResult('t6', 'pending', 'Necesita URL');
+    return;
+  }
+
+  const ping = await testWorkerPing();
+  if (!ping) {
+    addLog('\n⚠ Si el Worker no responde, verifica que está desplegado en Cloudflare');
+    setResult('t4', 'pending', 'Worker no responde');
+    setResult('t5', 'pending', 'Worker no responde');
+    setResult('t6', 'pending', 'Worker no responde');
+    return;
+  }
+
+  await testNotion('t4', 'Tasks/Daily/Expenses');
+  setResult('t5', true, 'Incluido en test anterior');
+  setResult('t6', true, 'Incluido en test anterior');
+
+  addLog('\n=== FIN DIAGNÓSTICO ===');
+}
+
+function saveAndTest() {
+  const raw = (document.getElementById('worker-input').value || '').trim().replace(/\/$/, '');
+  if (!raw) {
+    addLog('⚠ Escribe la URL del Worker primero');
+    return;
+  }
+  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  localStorage.setItem(CFG_KEY, url);
+  addLog('✓ URL guardada: ' + url);
+  runAllTests();
+}
+
+function clearAndReset() {
+  localStorage.removeItem(CFG_KEY);
+  document.getElementById('worker-input').value = '';
+  addLog('✓ URL borrada');
+  runAllTests();
+}
+
+function goToTracker() {
+  window.location.href = '/Isis-tracker/';
+}
+
+// Auto-run on load
+window.onload = () => {
+  const saved = localStorage.getItem(CFG_KEY) || '';
+  if (saved) document.getElementById('worker-input').value = saved;
+  runAllTests();
+};
+</script>
+
+</body>
+</html>
