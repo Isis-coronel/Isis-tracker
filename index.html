@@ -193,7 +193,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:13p
       <div class="step"><div class="step-num">2</div><div class="step-body">Crea 3 bases de datos en Notion: <code>Tasks</code>, <code>Daily</code>, <code>Expenses</code>. En cada una: <code>···</code> → Connections → añade "Isis Tracker".</div></div>
       <div class="step"><div class="step-num">3</div><div class="step-body">En Cloudflare → tu Worker → Settings → Variables: añade <code>NOTION_TOKEN</code>, <code>NOTION_DB_TASKS</code>, <code>NOTION_DB_DAILY</code>, <code>NOTION_DB_EXPENSES</code>.</div></div>
       <div class="step"><div class="step-num">4</div><div class="step-body">Pega la URL de tu Cloudflare Worker aquí y toca Conectar.</div></div>
-      <input class="setup-input" id="worker-url-input" placeholder="https://cloudflare-worker-for-my-tracker.d-coronelnyc.workers.dev" type="text" autocorrect="off" autocapitalize="off" spellcheck="false" autocomplete="off">
+      <input class="setup-input" id="worker-url-input" placeholder="https://cloudflare-worker-for-my-tracker.d-coronelnyc.workers.dev" type="url" autocorrect="off" autocapitalize="off" spellcheck="false">
       <button class="setup-btn" onclick="connectWorker()">Conectar →</button>
       <hr class="setup-divider">
       <div class="setup-note">💡 Si ya lo configuraste antes toca ⚙ en la barra de arriba para cambiar la URL.</div>
@@ -355,14 +355,16 @@ const HABIT_DEFS=[
 // CONFIG
 // ══════════════════════════════════════
 const CFG_KEY='isis_worker_url';
-let WORKER_URL=(localStorage.getItem(CFG_KEY)||'').trim().replace(/\/$/,'');
+// WORKER_URL is read fresh each time from localStorage
+function getWorkerURL(){return(localStorage.getItem(CFG_KEY)||'').trim().replace(/\/$/,'');}
 
 function connectWorker(){
   const raw=(document.getElementById('worker-url-input')?.value||'').trim().replace(/\/$/,'');
-  if(!raw){showToast('Pega la URL del Worker');return;}
-  WORKER_URL=raw.startsWith('http')?raw:'https://'+raw;
-  localStorage.setItem(CFG_KEY,WORKER_URL);
-  init();
+  if(!raw){alert('Pega la URL del Worker primero');return;}
+  const url=raw.startsWith('http')?raw:'https://'+raw;
+  localStorage.setItem(CFG_KEY,url);
+  // Force reload so init() reads fresh value
+  location.reload();
 }
 function resetSetup(){
   if(!confirm('¿Cambiar URL del Worker?'))return;
@@ -400,6 +402,7 @@ function setSyncUI(status,msg){
 }
 
 async function apiCall(action,body={}){
+  const WORKER_URL=window.WORKER_URL||getWorkerURL();
   if(!WORKER_URL)return null;
   try{
     const ctrl=new AbortController();
@@ -868,13 +871,16 @@ setTimeout(()=>t.classList.remove(‘show’),2500);
 // ══════════════════════════════════════
 async function init(){
 loadCache();
-if(!WORKER_URL){
+const workerURL = getWorkerURL();
+if(!workerURL){
 document.getElementById(‘setup-screen’).style.display=‘block’;
 document.getElementById(‘app-wrap’).style.display=‘none’;
 document.getElementById(‘fab-btn’).style.display=‘none’;
 document.getElementById(‘bnav’).style.display=‘none’;
 return;
 }
+// Store in module-level variable for API calls
+window.WORKER_URL = workerURL;
 document.getElementById(‘setup-screen’).style.display=‘none’;
 document.getElementById(‘app-wrap’).style.display=‘block’;
 document.getElementById(‘fab-btn’).style.display=‘flex’;
