@@ -193,7 +193,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:13p
       <div class="step"><div class="step-num">2</div><div class="step-body">Crea 3 bases de datos en Notion: <code>Tasks</code>, <code>Daily</code>, <code>Expenses</code>. En cada una: <code>···</code> → Connections → añade "Isis Tracker".</div></div>
       <div class="step"><div class="step-num">3</div><div class="step-body">En Cloudflare → tu Worker → Settings → Variables: añade <code>NOTION_TOKEN</code>, <code>NOTION_DB_TASKS</code>, <code>NOTION_DB_DAILY</code>, <code>NOTION_DB_EXPENSES</code>.</div></div>
       <div class="step"><div class="step-num">4</div><div class="step-body">Pega la URL de tu Cloudflare Worker aquí y toca Conectar.</div></div>
-      <input class="setup-input" id="worker-url-input" placeholder="https://cloudflare-worker-for-my-tracker.d-coronelnyc.workers.dev" type="url" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <input class="setup-input" id="worker-url-input" placeholder="https://cloudflare-worker-for-my-tracker.d-coronelnyc.workers.dev" type="text" autocorrect="off" autocapitalize="off" spellcheck="false" autocomplete="off">
       <button class="setup-btn" onclick="connectWorker()">Conectar →</button>
       <hr class="setup-divider">
       <div class="setup-note">💡 Si ya lo configuraste antes toca ⚙ en la barra de arriba para cambiar la URL.</div>
