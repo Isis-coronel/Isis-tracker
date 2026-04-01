@@ -737,7 +737,7 @@ return`<div class="habit-row"><div class="habit-name">${h.label}</div><div class
 const cycleBar=DL.map((_,i)=>{const d=addD(wm,i);const{cycleDay:cd,info:pInfo}=getCycleInfo(d);return`<div class="cseg" style="background:${pInfo.soft};color:${pInfo.color}">${cd}</div>`;}).join(’’);
 
 let allExp=[];
-for(let i=0;i<7;i++){const d=addD(wm,i);expList(dateStr(d)).forEach(e=>allExp.push({…e,date:dateStr(d)}));}
+for(let i=0;i<7;i++){const d=addD(wm,i);expList(dateStr(d)).forEach(e=>allExp.push({...e,date:dateStr(d)}));}
 const totEUR=allExp.reduce((s,e)=>s+toEUR(e.amount,e.currency),0);
 const expHtml=allExp.length===0
 ?`<div style="padding:14px;font-size:12px;color:var(--muted);text-align:center">Sin gastos esta semana</div>`
@@ -851,7 +851,7 @@ const exp={id:‘e’+Date.now(),name,amount,currency,category:expCat,card:expCa
 const arr=expList(dk);arr.push(exp);
 cache.expenses[dk]=arr;saveCache();
 closeExpModal();showToast(`Gasto guardado · ${currency==='EUR'?'€':'$'}${amount.toFixed(2)}`);
-await apiCall(‘saveExpense’,{…exp,date:dk});
+await apiCall(‘saveExpense’,{...exp,date:dk});
 if(currentView===‘report’)render();
 }
 async function delExp(dk,id,pageId){
