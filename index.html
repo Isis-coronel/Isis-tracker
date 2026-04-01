@@ -646,249 +646,314 @@ function renderDay(){
 }
 
 function renderTask(task,dk,isCustom,highlight){
-const tid=task.tid||task.id;
-const done=taskDone(dk,tid);
-const secs=taskSecs(dk,tid);
-const running=isRunning(dk,tid);
-const cmap={morning:‘mañana’,work:‘trabajo’,self:‘self-care’,apps:‘apps’,home:‘hogar’,personal:‘personal’,content:‘contenido’,custom:‘extra’};
-const k=tmrKey(dk,tid);
-return`<div class="block ${done?'done':''} ${running?'running':''} ${isCustom?'is-custom':''} ${highlight?'essential':''}" id="blk_${k}"> <div class="block-inner"> <button class="check-btn" onclick="toggleDone('${dk}','${tid}')">✓</button> <div class="task-info"> <div class="task-meta"> <span class="task-cat cat-${task.cat}">${cmap[task.cat]||task.cat}</span> <span class="task-time-lbl">${task.time||''} ${task.dur?'· ~'+task.dur+'min':''}</span> </div> <div class="task-title">${task.title}</div> ${task.note?`<div class="task-note">${task.note}</div>`:''} </div> <div class="task-actions"> <div class="timer-disp" id="td_${k}">${fmtT(secs)}</div> <button class="timer-btn" onclick="toggleTimer('${dk}','${tid}')">${running?'⏸':'▶'}</button> ${isCustom?`<button class="del-btn" onclick="delTask('${dk}','${tid}')">×</button>`:’’}
-</div>
-</div>
-
+  const tid=task.tid||task.id;
+  const done=taskDone(dk,tid);
+  const secs=taskSecs(dk,tid);
+  const running=isRunning(dk,tid);
+  const cmap={morning:'mañana',work:'trabajo',self:'self-care',apps:'apps',home:'hogar',personal:'personal',content:'contenido',custom:'extra'};
+  const k=tmrKey(dk,tid);
+  return`<div class="block ${done?'done':''} ${running?'running':''} ${isCustom?'is-custom':''} ${highlight?'essential':''}" id="blk_${k}">
+    <div class="block-inner">
+      <button class="check-btn" onclick="toggleDone('${dk}','${tid}')">${done?'✓':''}</button>
+      <div class="task-info">
+        <div class="task-meta">
+          <span class="task-cat cat-${task.cat||'custom'}">${cmap[task.cat||'custom']||'extra'}</span>
+          <span class="task-time-lbl">${task.time||''}</span>
+        </div>
+        <div class="task-title">${task.title||''}</div>
+        ${task.note?`<div class="task-note">${task.note}</div>`:''}
+      </div>
+      <div class="task-actions">
+        <div class="timer-disp" id="td_${k}">${fmtT(secs)}</div>
+        <button class="timer-btn" onclick="toggleTimer('${dk}','${tid}')">${running?'stop':'timer'}</button>
+        ${isCustom?`<button class="del-btn" onclick="delTask('${dk}','${tid}')">×</button>`:''}
+      </div>
+    </div>
   </div>`;
 }
 
 function renderCal(){
-const year=calViewMonth.getFullYear(),month=calViewMonth.getMonth();
-let gs=new Date(year,month,1);
-const off=gs.getDay()===0?6:gs.getDay()-1;
-gs.setDate(gs.getDate()-off);
-let cells=’’;
-DL.forEach(l=>{cells+=`<div class="cal-day-label">${l}</div>`;});
-let d=new Date(gs);
-for(let i=0;i<42;i++){
-const dk=dateStr(d);
-const isThis=d.getMonth()===month;
-const isToday=sameD(d,TODAY),isSel=sameD(d,selectedDate),restDay=isRest(d);
-const{phase,info:pInfo}=getCycleInfo(d);
-const prog=restDay?null:getProgress(d);
-const pct=prog?prog.pct:0;
-const med=dayField(dk,‘med’,null);
-cells+=`<div class="cal-cell ${!isThis?'other-month':''} ${isToday?'is-today':''} ${isSel?'selected':''}" onclick="calSel('${dk}')" style="${isThis&&!isSel?`background:${pInfo.soft}15`:''}"> <div class="cal-num" style="${isThis&&!isSel?`color:${pInfo.color}`:''}">${d.getDate()}</div> ${isThis&&!restDay&&prog?`<div class="cal-done-bar" style="background:${pct>=80?'var(--green)':pct>=50?'var(--accent)':'var(--border)'}"></div>`:''} ${isThis&&phase==='period'?`<div class="cal-dot" style="background:var(--period)"></div>`:''} ${isThis&&med&&med.taken?`<div class="cal-med-dot"></div>`:''} </div>`;
-d=addD(d,1);
-}
-return`<div class="cal-wrap">
-<div class="cal-nav"><button class="cal-arrow" onclick="calPrev()">‹</button><div class="cal-nav-title">${MONTHS[month]} ${year}</div><button class="cal-arrow" onclick="calNext()">›</button></div>
-<div class="cal-grid">${cells}</div>
-
-  </div>
-  <div class="main">
-    <div class="section-label">leyenda del ciclo</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
-      ${Object.entries(PHASES).map(([k,v])=>`<span style="font-size:10px;background:${v.soft};color:${v.color};padding:2px 9px;border-radius:20px">${v.label}</span>`).join('')}
+  const year=calViewMonth.getFullYear(),month=calViewMonth.getMonth();
+  let gs=new Date(year,month,1);
+  const off=gs.getDay()===0?6:gs.getDay()-1;
+  gs.setDate(gs.getDate()-off);
+  let cells='';
+  DL.forEach(l=>{cells+=`<div class="cal-day-label">${l}</div>`;});
+  let d=new Date(gs);
+  for(let i=0;i<42;i++){
+    const dk=dateStr(d);
+    const isThis=d.getMonth()===month;
+    const isToday=sameD(d,TODAY),isSel=sameD(d,selectedDate),restDay=isRest(d);
+    const {phase,info:pInfo}=getCycleInfo(d);
+    const prog=restDay?null:getProgress(d);
+    const pct=prog?prog.pct:0;
+    const med=dayField(dk,'med',null);
+    cells+=`<div class="cal-cell ${!isThis?'other-month':''} ${isToday?'is-today':''} ${isSel?'selected':''}"
+      onclick="calSel('${dk}')"
+      style="${isThis&&!isSel?`background:${pInfo.soft}15`:''}">
+      <div class="cal-num">${d.getDate()}</div>
+      <div class="cal-dot" style="background:${pInfo.color}"></div>
+      ${!restDay?`<div class="cal-done-bar" style="background:${pct>=80?'var(--green)':pct>=50?'var(--accent)':'var(--border)'}"></div>`:''}
+      ${med&&med.taken?`<div class="cal-med-dot"></div>`:''}
+    </div>`;
+    d=addD(d,1);
+  }
+  return`<div class="cal-wrap">
+    <div class="cal-nav">
+      <button class="cal-arrow" onclick="calPrev()">‹</button>
+      <div class="cal-nav-title">${MONTHS[month]} ${year}</div>
+      <button class="cal-arrow" onclick="calNext()">›</button>
     </div>
-    <div style="font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap"><span>🟣 = Elvanse</span><span>🔴 = menstruación</span></div>
-  </div>`;
+    <div class="cal-grid">${cells}</div>
+
+    </div>
+    <div class="main">
+      <div class="section-label">leyenda del ciclo</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        ${Object.entries(PHASES).map(([k,v])=>`<span style="font-size:10px;background:${v.soft};color:${v.color};padding:2px 9px;border-radius:20px">${v.label}</span>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap"><span>🟣 = Elvanse</span><span>🔴 = menstruación</span></div>
+    </div>`;
 }
 
 function renderReport(){
-const wi=wIdx(selectedDate),wm=addD(selectedDate,-wi);
-const cells=DL.map((_,i)=>{
-const d=addD(wm,i),dk=dateStr(d);
-const restDay=isRest(d),isToday=sameD(d,TODAY);
-const{info:pInfo}=getCycleInfo(d);
-const med=dayField(dk,‘med’,null);
-const energy=dayField(dk,‘energy’,null);
-const eE=energy===‘alta’?‘🔋’:energy===‘media’?‘⚡’:energy===‘baja’?‘🪫’:’’;
-if(restDay)return`<div class="wc wrest"><div class="wd">${_}</div><div class="wp" style="color:var(--free);font-size:16px">☁</div><div class="ws">descanso</div></div>`;
-const prog=getProgress(d);
-const col=prog.pct>=80?‘var(–green)’:prog.pct>=50?‘var(–accent)’:‘var(–muted)’;
-return`<div class="wc" style="${isToday?'border-color:var(--accent)':''}"> <div class="wd" style="color:${pInfo.color}">${_}</div> <div class="wp" style="color:${col}">${prog.pct}%</div> <div class="ws">${prog.done}/${prog.total}</div> <div class="wmed">${med&&med.taken?'💊':''} ${eE}</div> </div>`;
-});
+  const wi=wIdx(selectedDate),wm=addD(selectedDate,-wi);
+  const cells=DL.map((_,i)=>{
+    const d=addD(wm,i),dk=dateStr(d);
+    const restDay=isRest(d),isToday=sameD(d,TODAY);
+    const {info:pInfo}=getCycleInfo(d);
+    const med=dayField(dk,'med',null);
+    const energy=dayField(dk,'energy',null);
+    const eE=energy==='alta'?'🔋':energy==='media'?'⚡':energy==='baja'?'🪫':'';
+    if(restDay)return`<div class="wc wrest"><div class="wd">${_}</div><div class="wp" style="color:var(--free);font-size:16px">☁</div><div class="ws">descanso</div></div>`;
+    const prog=getProgress(d);
+    const col=prog.pct>=80?'var(--green)':prog.pct>=50?'var(--accent)':'var(--muted)';
+    return`<div class="wc" style="${isToday?'border-color:var(--accent)':''}">
+      <div class="wd" style="color:${pInfo.color}">${_}</div>
+      <div class="wp" style="color:${col}">${prog.pct}%</div>
+      <div class="ws">${med?(med.taken?'💊':'—'):''} ${eE}</div>
+    </div>`;
+  });
 
-let tD=0,tT=0,tS=0,mD=0,mT=0,nD=0,nT=0;
-for(let i=0;i<7;i++){
-const d=addD(wm,i);if(isRest(d))continue;
-const dk=dateStr(d);const tasks=getAllTasks(d);tT+=tasks.length;
-const dc=tasks.filter(t=>taskDone(dk,t.tid||t.id)).length;tD+=dc;
-tasks.forEach(t=>{tS+=taskSecs(dk,t.tid||t.id);});
-const med=dayField(dk,‘med’,null);
-if(med){if(med.taken){mD+=dc;mT+=tasks.length;}else{nD+=dc;nT+=tasks.length;}}
-}
-const wPct=tT?Math.round(tD/tT*100):0;
-const tH=Math.floor(tS/3600),tM=Math.floor((tS%3600)/60);
-const mPct=mT?Math.round(mD/mT*100):null;
-const nPct=nT?Math.round(nD/nT*100):null;
+  let tD=0,tT=0,tS=0,mD=0,mT=0,nD=0,nT=0;
+  for(let i=0;i<7;i++){
+    const d=addD(wm,i);if(isRest(d))continue;
+    const dk=dateStr(d);const tasks=getAllTasks(d);tT+=tasks.length;
+    const dc=tasks.filter(t=>taskDone(dk,t.tid||t.id)).length;tD+=dc;
+    tasks.forEach(t=>{tS+=taskSecs(dk,t.tid||t.id);});
+    const med=dayField(dk,'med',null);
+    if(med){if(med.taken){mD+=dc;mT+=tasks.length;}else{nD+=dc;nT+=tasks.length;}}
+  }
+  const wPct=tT?Math.round(tD/tT*100):0;
+  const tH=Math.floor(tS/3600),tM=Math.floor((tS%3600)/60);
+  const mPct=mT?Math.round(mD/mT*100):null;
+  const nPct=nT?Math.round(nD/nT*100):null;
 
-const habitRows=HABIT_DEFS.map(h=>{
-const dots=DL.map((_,i)=>{
-const d=addD(wm,i),dk=dateStr(d);
-if(isRest(d))return`<div class="hd rest"></div>`;
-const t2=getTmpl(d);
-const sched=t2&&t2!==‘rest’&&h.tids.some(tid=>t2.tasks.find(t=>t.tid===tid));
-if(!sched)return`<div class="hd na"></div>`;
-const done=h.tids.some(tid=>taskDone(dk,tid));
-return`<div class="hd ${done?'done':''} ${sameD(d,TODAY)?'today':''}"></div>`;
-}).join(’’);
-return`<div class="habit-row"><div class="habit-name">${h.label}</div><div class="hdots">${dots}</div></div>`;
-}).join(’’);
+  const habitRows=HABIT_DEFS.map(h=>{
+    const dots=DL.map((_,i)=>{
+      const d=addD(wm,i),dk=dateStr(d);
+      if(isRest(d))return`<div class="hd rest"></div>`;
+      const t2=getTmpl(d);
+      const sched=t2&&t2!=='rest'&&h.tids.some(tid=>t2.tasks.find(t=>t.tid===tid));
+      if(!sched)return`<div class="hd na"></div>`;
+      const done=h.tids.some(tid=>taskDone(dk,tid));
+      return`<div class="hd ${done?'done':''} ${sameD(d,TODAY)?'today':''}"></div>`;
+    }).join('');
+    return`<div class="habit-row"><div class="habit-name">${h.label}</div><div class="hdots">${dots}</div></div>`;
+  }).join('');
 
-const cycleBar=DL.map((_,i)=>{const d=addD(wm,i);const{cycleDay:cd,info:pInfo}=getCycleInfo(d);return`<div class="cseg" style="background:${pInfo.soft};color:${pInfo.color}">${cd}</div>`;}).join(’’);
+  const cycleBar=DL.map((_,i)=>{
+    const d=addD(wm,i);
+    const {cycleDay:cd,info:pInfo}=getCycleInfo(d);
+    return`<div class="cseg" style="background:${pInfo.soft};color:${pInfo.color}">${cd}</div>`;
+  }).join('');
 
-let allExp=[];
-for(let i=0;i<7;i++){const d=addD(wm,i);expList(dateStr(d)).forEach(e=>allExp.push({...e,date:dateStr(d)}));}
-const totEUR=allExp.reduce((s,e)=>s+toEUR(e.amount,e.currency),0);
-const expHtml=allExp.length===0
-?`<div style="padding:14px;font-size:12px;color:var(--muted);text-align:center">Sin gastos esta semana</div>`
-:allExp.map(e=>`<div class="exp-item"> <span class="exp-cat">${e.category||'otros'}</span> <div class="exp-info"><div class="exp-name">${e.name}</div><div class="exp-meta">${e.card||''} · ${e.date}${e.isSub?' · 🔄':''}</div></div> <div class="exp-amount">${e.currency==='EUR'?'€':'$'}${Number(e.amount).toFixed(2)}</div> <button class="exp-del" onclick="delExp('${e.date}','${e.id}','${e.pageId||''}')">×</button> </div>`).join(’’);
+  let allExp=[];
+  for(let i=0;i<7;i++){const d=addD(wm,i);expList(dateStr(d)).forEach(e=>allExp.push({...e,date:dateStr(d)}));}
+  const totEUR=allExp.reduce((s,e)=>s+toEUR(e.amount,e.currency),0);
+  const expHtml=allExp.length===0
+    ?`<div style="padding:14px;font-size:12px;color:var(--muted);text-align:center">Sin gastos esta semana</div>`
+    :allExp.map(e=>`<div class="exp-item">
+        <span class="exp-cat">${e.category||'otros'}</span>
+        <div class="exp-info">
+          <div class="exp-name">${e.name}</div>
+          <div class="exp-meta">${e.card||''} · ${e.date}</div>
+        </div>
+        <div class="exp-amount">${e.currency==='EUR'?'€':'$'}${Number(e.amount||0).toFixed(2)}</div>
+        <button class="exp-del" onclick="delExp('${e.date}','${e.id}','${e.pageId||''}')">×</button>
+      </div>`).join('');
 
-const wL=`${addD(wm,0).toLocaleDateString('es-ES',{day:'numeric',month:'short'})} – ${addD(wm,6).toLocaleDateString('es-ES',{day:'numeric',month:'short'})}`;
-return`
-
-  <div class="header"><div class="header-row"><div><div class="h-title">Informe</div><div class="h-date">${wL}</div></div><div class="h-btns"><button class="hb active" onclick="sv('day')">← volver</button></div></div></div>
-  <div style="padding:0 16px"><div class="section-label">esta semana</div></div>
-  <div class="week-grid-r">${cells.join('')}</div>
-  <div class="stats-grid">
-    <div class="sc"><div class="sl">completado</div><div class="sv">${wPct}%</div><div class="ss">${tD} de ${tT} tareas</div></div>
-    <div class="sc"><div class="sl">tiempo activo</div><div class="sv">${tH}h ${tM}m</div><div class="ss">cronómetros semana</div></div>
-  </div>
-  <div style="padding:0 16px"><div class="section-label">elvanse</div></div>
-  <div class="med-report">
-    <h4>Productividad con vs sin medicación</h4>
-    <div class="med-compare">
-      <div class="med-col taken"><div class="mc-label">💊 Con Elvanse</div><div class="mc-val">${mPct!==null?mPct+'%':'—'}</div><div class="mc-sub">${mT?mD+'/'+mT+' tareas':'sin datos aún'}</div></div>
-      <div class="med-col"><div class="mc-label">Sin Elvanse</div><div class="mc-val">${nPct!==null?nPct+'%':'—'}</div><div class="mc-sub">${nT?nD+'/'+nT+' tareas':'sin datos aún'}</div></div>
+  const wL=`${addD(wm,0).toLocaleDateString('es-ES',{day:'numeric',month:'short'})} – ${addD(wm,6).toLocaleDateString('es-ES',{day:'numeric',month:'short'})}`;
+  return`
+    <div class="header">
+      <div class="header-row">
+        <div><div class="h-title">Informe</div><div class="h-date">${wL}</div></div>
+        <div class="h-btns"><button class="hb active" onclick="sv('day')">← volver</button></div>
+      </div>
     </div>
-    <p style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.6">Con más semanas verás el patrón real. Útil para tu psiquiatra.</p>
-  </div>
-  <div style="padding:0 16px"><div class="section-label">hábitos</div></div>
-  <div class="habit-wrap">${habitRows}</div>
-  <div style="padding:0 16px"><div class="section-label">ciclo</div></div>
-  <div style="padding:0 16px 12px">
-    <div class="cycle-bar">${cycleBar}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${Object.entries(PHASES).map(([k,v])=>`<span style="font-size:10px;background:${v.soft};color:${v.color};padding:2px 8px;border-radius:20px">${v.short}</span>`).join('')}</div>
-  </div>
-  <div style="padding:0 16px"><div class="section-label">gastos</div></div>
-  <div class="exp-total-row"><span style="color:var(--muted)">total semana (en €)</span><span style="font-family:var(--serif);font-size:18px">€${totEUR.toFixed(2)}</span></div>
-  <div class="exp-list">${expHtml}</div>`;
+
+    <div style="padding:0 16px"><div class="section-label">esta semana</div></div>
+    <div class="week-grid-r">${cells.join('')}</div>
+
+    <div class="stats-grid">
+      <div class="sc"><div class="sl">completado</div><div class="sv">${wPct}%</div><div class="ss">${tD} de ${tT} tareas</div></div>
+      <div class="sc"><div class="sl">tiempo activo</div><div class="sv">${tH}h ${tM}m</div><div class="ss">cronómetros semana</div></div>
+    </div>
+
+    <div style="padding:0 16px"><div class="section-label">elvanse</div></div>
+    <div class="med-report">
+      <h4>Productividad con vs sin medicación</h4>
+      <div class="med-compare">
+        <div class="med-col taken"><div class="mc-label">💊 Con Elvanse</div><div class="mc-val">${mPct!==null?mPct+'%':'—'}</div><div class="mc-sub">${mT?mD+'/'+mT+' tareas':'sin datos aún'}</div></div>
+        <div class="med-col"><div class="mc-label">Sin Elvanse</div><div class="mc-val">${nPct!==null?nPct+'%':'—'}</div><div class="mc-sub">${nT?nD+'/'+nT+' tareas':'sin datos aún'}</div></div>
+      </div>
+      <p style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.6">Con más semanas verás el patrón real. Útil para tu psiquiatra.</p>
+    </div>
+
+    <div style="padding:0 16px"><div class="section-label">hábitos</div></div>
+    <div class="habit-wrap">${habitRows}</div>
+
+    <div style="padding:0 16px"><div class="section-label">ciclo</div></div>
+    <div style="padding:0 16px 12px">
+      <div class="cycle-bar">${cycleBar}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+        ${Object.entries(PHASES).map(([k,v])=>`<span style="font-size:10px;background:${v.soft};color:${v.color};padding:2px 8px;border-radius:20px">${v.label}</span>`).join('')}
+      </div>
+    </div>
+
+    <div style="padding:0 16px"><div class="section-label">gastos</div></div>
+    <div class="exp-total-row"><span style="color:var(--muted)">total semana (en €)</span><span style="font-family:var(--serif);font-size:18px">€${totEUR.toFixed(2)}</span></div>
+    <div class="exp-list">${expHtml}</div>`;
 }
 
 // ══════════════════════════════════════
 // ACTIONS
 // ══════════════════════════════════════
-function selDate(dk){stopAllTimers();selectedDate=new Date(dk+‘T12:00:00’);selectedDate.setHours(0,0,0,0);currentView=‘day’;addFormOpen=false;render();}
-function calSel(dk){selectedDate=new Date(dk+‘T12:00:00’);selectedDate.setHours(0,0,0,0);currentView=‘day’;addFormOpen=false;render();}
-function goToday(){stopAllTimers();selectedDate=new Date(TODAY);currentView=‘day’;addFormOpen=false;render();}
+function selDate(dk){stopAllTimers();selectedDate=new Date(dk+'T12:00:00');selectedDate.setHours(0,0,0,0);currentView='day';addFormOpen=false;render();}
+function calSel(dk){selectedDate=new Date(dk+'T12:00:00');selectedDate.setHours(0,0,0,0);currentView='day';addFormOpen=false;render();}
+function goToday(){stopAllTimers();selectedDate=new Date(TODAY);currentView='day';addFormOpen=false;render();}
 function sv(v){stopAllTimers();currentView=v;addFormOpen=false;render();}
 function calPrev(){calViewMonth=new Date(calViewMonth.getFullYear(),calViewMonth.getMonth()-1,1);render();}
 function calNext(){calViewMonth=new Date(calViewMonth.getFullYear(),calViewMonth.getMonth()+1,1);render();}
 
-function toggleDone(dk,tid){const was=taskDone(dk,tid);setTaskDone(dk,tid,!was);if(!was){stopTmr(dk,tid);showToast(‘✓ Hecha’);}pushTask(dk,tid);render();}
+function toggleDone(dk,tid){const was=taskDone(dk,tid);setTaskDone(dk,tid,!was);if(!was){stopTmr(dk,tid);showToast('✓ Hecha');}pushTask(dk,tid);render();}
 function toggleTimer(dk,tid){if(isRunning(dk,tid)){stopTmr(dk,tid);render();}else{startTmr(dk,tid);render();}}
-function toggleEasy(dk){setDayField(dk,‘easyMode’,!dayField(dk,‘easyMode’,false));pushDaily(dk);render();}
-function setEnergy(dk,v){setDayField(dk,‘energy’,v);pushDaily(dk);render();}
-function noteInput(dk,v){setDayField(dk,‘note’,v);debouncePushDaily(dk);}
+function toggleEasy(dk){setDayField(dk,'easyMode',!dayField(dk,'easyMode',false));pushDaily(dk);render();}
+function setEnergy(dk,v){setDayField(dk,'energy',v);pushDaily(dk);render();}
+function noteInput(dk,v){setDayField(dk,'note',v);debouncePushDaily(dk);}
 
 // MED — uses modal, not prompt()
 function openMedModal(dk){
-medModalDk=dk;
-const med=dayField(dk,‘med’,null);
-const inp=document.getElementById(‘med-time-inp’);
-if(inp)inp.value=(med&&med.time)||’’;
-document.getElementById(‘med-overlay’).classList.remove(‘hidden’);
+  medModalDk=dk;
+  const med=dayField(dk,'med',null);
+  const inp=document.getElementById('med-time-inp');
+  if(inp)inp.value=(med&&med.time)||'';
+  document.getElementById('med-overlay').classList.remove('hidden');
 }
-function closeMedModal(){document.getElementById(‘med-overlay’).classList.add(‘hidden’);medModalDk=null;}
-function overlayClickMed(e){if(e.target.id===‘med-overlay’)closeMedModal();}
+function closeMedModal(){document.getElementById('med-overlay').classList.add('hidden');medModalDk=null;}
+function overlayClickMed(e){if(e.target.id==='med-overlay')closeMedModal();}
 function saveMed(taken){
-const dk=medModalDk;if(!dk)return;
-if(taken===null){setDayField(dk,‘med’,null);showToast(‘Registro borrado’);}
-else if(taken){const time=(document.getElementById(‘med-time-inp’)?.value||’’).trim();setDayField(dk,‘med’,{taken:true,time});showToast(‘💊 Elvanse registrado’);}
-else{setDayField(dk,‘med’,{taken:false,time:null});showToast(‘Registrado: sin Elvanse hoy’);}
-pushDaily(dk);closeMedModal();render();
+  const dk=medModalDk;if(!dk)return;
+  if(taken===null){setDayField(dk,'med',null);showToast('Registro borrado');}
+  else if(taken){const time=(document.getElementById('med-time-inp')?.value||'').trim();setDayField(dk,'med',{taken:true,time});showToast('💊 Elvanse registrado');}
+  else{setDayField(dk,'med',{taken:false,time:null});showToast('Registrado: sin Elvanse hoy');}
+  pushDaily(dk);closeMedModal();render();
 }
 
-function toggleForm(){addFormOpen=!addFormOpen;render();if(addFormOpen)setTimeout(()=>{const el=document.getElementById(‘f-title’);if(el)el.focus();},80);}
+function toggleForm(){
+  addFormOpen=!addFormOpen;
+  render();
+  if(addFormOpen)setTimeout(()=>{const el=document.getElementById('f-title');if(el)el.focus();},80);
+}
 function saveTask(){
-const title=(document.getElementById(‘f-title’)?.value||’’).trim();
-if(!title){showToast(‘Escribe un nombre’);return;}
-const time=(document.getElementById(‘f-time’)?.value||’’).trim();
-const dur=parseInt(document.getElementById(‘f-dur’)?.value)||0;
-const cat=document.getElementById(‘f-cat’)?.value||‘custom’;
-const note=(document.getElementById(‘f-note’)?.value||’’).trim();
-const dk=dateStr(selectedDate);
-const arr=customList(dk);const id=‘c’+Date.now();
-arr.push({id,tid:id,time,cat,title,note,dur});
-setCustomList(dk,arr);pushDaily(dk);addFormOpen=false;showToast(‘Tarea añadida’);render();
+  const title=(document.getElementById('f-title')?.value||'').trim();
+  if(!title){showToast('Escribe un nombre');return;}
+  const time=(document.getElementById('f-time')?.value||'').trim();
+  const dur=parseInt(document.getElementById('f-dur')?.value)||0;
+  const cat=document.getElementById('f-cat')?.value||'custom';
+  const note=(document.getElementById('f-note')?.value||'').trim();
+  const dk=dateStr(selectedDate);
+  const arr=customList(dk);const id='c'+Date.now();
+  arr.push({id,tid:id,time,cat,title,note,dur});
+  setCustomList(dk,arr);pushDaily(dk);addFormOpen=false;showToast('Tarea añadida');render();
 }
 function delTask(dk,tid){setCustomList(dk,customList(dk).filter(t=>(t.tid||t.id)!==tid));pushDaily(dk);render();}
 
 function openExpModal(){
-document.getElementById(‘exp-overlay’).classList.remove(‘hidden’);
-document.getElementById(‘exp-name’).value=’’;document.getElementById(‘exp-amount’).value=’’;document.getElementById(‘exp-currency’).value=‘EUR’;
-expCat=’’;expCard=’’;expIsSub=false;
-document.querySelectorAll(’#cat-chips .chip’).forEach(c=>c.classList.remove(‘selected’));
-document.querySelectorAll(’#card-chips .chip’).forEach(c=>c.classList.remove(‘selected’));
-document.getElementById(‘sub-toggle’).classList.remove(‘on’);
-document.getElementById(‘sub-label’).textContent=‘Pago puntual’;
-fetchRate();
+  document.getElementById('exp-overlay').classList.remove('hidden');
+  document.getElementById('exp-name').value='';
+  document.getElementById('exp-amount').value='';
+  document.getElementById('exp-currency').value='EUR';
+  expCat='';expCard='';expIsSub=false;
+  document.querySelectorAll('#cat-chips .chip').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('#card-chips .chip').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('sub-toggle').classList.remove('on');
+  document.getElementById('sub-label').textContent='Pago puntual';
+  fetchRate();
 }
-function closeExpModal(){document.getElementById(‘exp-overlay’).classList.add(‘hidden’);}
-function overlayClickExp(e){if(e.target.id===‘exp-overlay’)closeExpModal();}
-function selectCat(el,cat){document.querySelectorAll(’#cat-chips .chip’).forEach(c=>c.classList.remove(‘selected’));el.classList.add(‘selected’);expCat=cat;}
-function selectCard(el,card){document.querySelectorAll(’#card-chips .chip’).forEach(c=>c.classList.remove(‘selected’));el.classList.add(‘selected’);expCard=card;}
-function toggleSub(){expIsSub=!expIsSub;document.getElementById(‘sub-toggle’).classList.toggle(‘on’,expIsSub);document.getElementById(‘sub-label’).textContent=expIsSub?‘Suscripción recurrente’:‘Pago puntual’;}
+function closeExpModal(){document.getElementById('exp-overlay').classList.add('hidden');}
+function overlayClickExp(e){if(e.target.id==='exp-overlay')closeExpModal();}
+function selectCat(el,cat){document.querySelectorAll('#cat-chips .chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');expCat=cat;}
+function selectCard(el,card){document.querySelectorAll('#card-chips .chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');expCard=card;}
+function toggleSub(){
+  expIsSub=!expIsSub;
+  document.getElementById('sub-toggle').classList.toggle('on',expIsSub);
+  document.getElementById('sub-label').textContent=expIsSub?'Suscripción':'Pago puntual';
+}
 
 async function saveExpense(){
-const name=(document.getElementById(‘exp-name’)?.value||’’).trim();
-const amount=parseFloat(document.getElementById(‘exp-amount’)?.value);
-const currency=document.getElementById(‘exp-currency’)?.value||‘EUR’;
-if(!name||!amount||amount<=0){showToast(‘Rellena nombre y cantidad’);return;}
-if(!expCat){showToast(‘Selecciona una categoría’);return;}
-if(!expCard){showToast(‘Selecciona una tarjeta’);return;}
-const dk=dateStr(selectedDate);
-const exp={id:‘e’+Date.now(),name,amount,currency,category:expCat,card:expCard,isSub:expIsSub};
-const arr=expList(dk);arr.push(exp);
-cache.expenses[dk]=arr;saveCache();
-closeExpModal();showToast(`Gasto guardado · ${currency==='EUR'?'€':'$'}${amount.toFixed(2)}`);
-await apiCall(‘saveExpense’,{...exp,date:dk});
-if(currentView===‘report’)render();
+  const name=(document.getElementById('exp-name')?.value||'').trim();
+  const amount=parseFloat(document.getElementById('exp-amount')?.value);
+  const currency=document.getElementById('exp-currency')?.value||'EUR';
+  if(!name||!amount||amount<=0){showToast('Rellena nombre y cantidad');return;}
+  if(!expCat){showToast('Selecciona una categoría');return;}
+  if(!expCard){showToast('Selecciona una tarjeta');return;}
+  const dk=dateStr(selectedDate);
+  const exp={id:'e'+Date.now(),name,amount,currency,category:expCat,card:expCard,isSub:expIsSub};
+  const arr=expList(dk);arr.push(exp);
+  cache.expenses[dk]=arr;saveCache();
+  closeExpModal();showToast(`Gasto guardado · ${currency==='EUR'?'€':'$'}${amount.toFixed(2)}`);
+  await apiCall('saveExpense',{...exp,date:dk});
+  if(currentView==='report')render();
 }
 async function delExp(dk,id,pageId){
-cache.expenses[dk]=(cache.expenses[dk]||[]).filter(e=>e.id!==id);
-saveCache();await apiCall(‘deleteExpense’,{date:dk,id,pageId});render();
+  cache.expenses[dk]=(cache.expenses[dk]||[]).filter(e=>e.id!==id);
+  saveCache();
+  await apiCall('deleteExpense',{date:dk,id,pageId});
+  render();
 }
 
 function showToast(msg){
-const t=document.getElementById(‘toast’);
-if(!t)return;
-t.textContent=msg;t.classList.add(‘show’);
-setTimeout(()=>t.classList.remove(‘show’),2500);
+  const t=document.getElementById('toast');
+  if(!t)return;
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
 }
 
 // ══════════════════════════════════════
 // INIT
 // ══════════════════════════════════════
 async function init(){
-loadCache();
-const workerURL = getWorkerURL();
-if(!workerURL){
-document.getElementById(‘setup-screen’).style.display=‘block’;
-document.getElementById(‘app-wrap’).style.display=‘none’;
-document.getElementById(‘fab-btn’).style.display=‘none’;
-document.getElementById(‘bnav’).style.display=‘none’;
-return;
-}
-// Store in module-level variable for API calls
-window.WORKER_URL = workerURL;
-document.getElementById(‘setup-screen’).style.display=‘none’;
-document.getElementById(‘app-wrap’).style.display=‘block’;
-document.getElementById(‘fab-btn’).style.display=‘flex’;
-document.getElementById(‘bnav’).style.display=‘flex’;
-render();
-setSyncUI(‘syncing’,‘Conectando con Notion…’);
-await syncNow();
-setInterval(syncNow,5*60*1000);
+  loadCache();
+  const workerURL = getWorkerURL();
+  if(!workerURL){
+    document.getElementById('setup-screen').style.display='block';
+    document.getElementById('app-wrap').style.display='none';
+    document.getElementById('fab-btn').style.display='none';
+    document.getElementById('bnav').style.display='none';
+    return;
+  }
+  // Store in module-level variable for API calls
+  window.WORKER_URL = workerURL;
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app-wrap').style.display='block';
+  document.getElementById('fab-btn').style.display='flex';
+  document.getElementById('bnav').style.display='flex';
+  render();
+  setSyncUI('syncing','Conectando con Notion…');
+  await syncNow();
+  setInterval(syncNow,5*60*1000);
 }
 
 init();
