@@ -15,10 +15,13 @@ h1{font-size:18px;margin-bottom:20px}
 button{background:#1a1814;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer;width:100%;margin-bottom:8px;font-family:monospace}
 input{width:100%;background:#ede9e3;border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;box-sizing:border-box;font-family:monospace}
 .log{background:#1a1814;color:#eee;border-radius:8px;padding:12px;font-size:11px;line-height:1.8;margin-top:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto}
+.note{background:#fff;border:1px solid #ddd;border-radius:8px;padding:12px;font-size:11px;line-height:1.7;margin-bottom:12px}
 </style>
 </head>
 <body>
 <h1>🔍 Diagnóstico del Tracker</h1>
+
+<div class="note">Pega la URL base del Worker (por ejemplo <strong>https://tu-worker.tu-subdominio.workers.dev</strong>), no una página del panel de Cloudflare. Debe responder JSON en <strong>?action=ping</strong> y, si lo usas desde GitHub Pages, necesita estas cabeceras CORS: <strong>Access-Control-Allow-Origin: https://isis-coronel.github.io</strong>, <strong>Access-Control-Allow-Methods: GET, POST, OPTIONS</strong> y <strong>Access-Control-Allow-Headers: Content-Type</strong>.</div>
 
 <div class="test">
   <div class="test-name">1. localStorage</div>
@@ -75,6 +78,57 @@ function setResult(id, ok, msg) {
   el.className = 'test-result ' + (ok === true ? 'ok' : ok === false ? 'fail' : ok === 'warn' ? 'warn' : 'pending');
   el.textContent = (ok === true ? '✓ ' : ok === false ? '✗ ' : ok === 'warn' ? '⚠ ' : '⏳ ') + msg;
 }
+function normalizeWorkerURL(raw) {
+  const withProtocol = raw.startsWith('http') ? raw : 'https://' + raw;
+  const parsed = new URL(withProtocol);
+  return parsed.href.replace(/\/$/, '');
+}
+function describeWorkerFailure(res) {
+  if (!res) return 'Sin respuesta';
+  if (res.errorType === 'timeout') return 'Timeout al llamar ?action=' + res.action;
+  if (res.errorType === 'network') return 'Bloqueado por URL/CORS/red';
+  if (res.errorType === 'http') return 'HTTP ' + res.status + ' en ?action=' + res.action;
+  if (res.errorType === 'invalid-json') return 'Respuesta no JSON en ?action=' + res.action;
+  return res.errorMessage || 'Error desconocido';
+}
+function describeWorkerIssueLong(res) {
+  if (!res) return 'No se pudo conectar al Worker.';
+  if (res.errorType === 'timeout') return 'El Worker tarda demasiado en responder. Comprueba que esta desplegado.';
+  if (res.errorType === 'network') return 'El navegador no pudo abrir el Worker. Suele ser URL incorrecta, Worker sin desplegar o CORS bloqueado.';
+  if (res.errorType === 'http') return 'El Worker devolvio HTTP ' + res.status + '. Comprueba la URL base y que soporte ?action=' + res.action + '.';
+  if (res.errorType === 'invalid-json') return 'El Worker respondio, pero no devolvio JSON valido. Vista previa: ' + (res.preview || '(vacio)');
+  return res.errorMessage || 'No se pudo conectar al Worker.';
+}
+function describePayloadIssue(action, data) {
+  if (!data || (!data.error && data.success !== false)) return '';
+  const msg = data.error || data.message || JSON.stringify(data).slice(0, 140);
+  if (action === 'getAll') return 'getAll falla: ' + msg + '. Revisa NOTION_TOKEN, NOTION_DB_TASKS, NOTION_DB_DAILY y NOTION_DB_EXPENSES.';
+  return action + ' falla: ' + msg;
+}
+async function requestWorker(action, timeoutMs) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), timeoutMs || 8000);
+  try {
+    const r = await fetch(workerURL + '?action=' + encodeURIComponent(action), { signal: ctrl.signal });
+    const text = await r.text();
+    let data = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch(e) {
+        return { ok: false, errorType: 'invalid-json', action, status: r.status, preview: text.slice(0, 180) };
+      }
+    }
+    if (!r.ok) return { ok: false, errorType: 'http', action, status: r.status, data };
+    return { ok: true, action, status: r.status, data };
+  } catch(e) {
+    if (e && e.name === 'AbortError') return { ok: false, errorType: 'timeout', action };
+    if (e instanceof TypeError) return { ok: false, errorType: 'network', action, errorMessage: e.message };
+    return { ok: false, errorType: 'unknown', action, errorMessage: e.message || String(e) };
+  } finally {
+    clearTimeout(to);
+  }
+}
 
 // TEST 1: localStorage
 function testLocalStorage() {
@@ -112,50 +166,44 @@ function testWorkerURL() {
 async function testWorkerPing() {
   setResult('t3', 'pending', 'Conectando...');
   addLog('⏳ Probando Worker...');
-  try {
-    const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 8000);
-    const r = await fetch(workerURL + '?action=ping', { signal: ctrl.signal });
-    const d = await r.json();
-    if (d && (d.ok || d.success)) {
-      setResult('t3', true, 'Worker responde correctamente');
-      addLog('✓ Worker OK: ' + JSON.stringify(d));
-      return true;
-    } else {
-      setResult('t3', false, 'Worker responde pero con error: ' + JSON.stringify(d));
-      addLog('✗ Worker error: ' + JSON.stringify(d));
-      return false;
-    }
-  } catch(e) {
-    setResult('t3', false, 'No responde: ' + e.message);
-    addLog('✗ Worker no responde: ' + e.message);
+  const res = await requestWorker('ping', 8000);
+  if (!res.ok) {
+    setResult('t3', false, describeWorkerFailure(res));
+    addLog('✗ Worker no responde: ' + describeWorkerIssueLong(res));
     return false;
   }
+  const d = res.data || {};
+  if (d.ok || d.success) {
+    setResult('t3', true, 'Worker responde correctamente');
+    addLog('✓ Worker OK: ' + JSON.stringify(d));
+    return true;
+  }
+  const issue = describePayloadIssue('ping', d) || ('Respuesta inesperada: ' + JSON.stringify(d));
+  setResult('t3', false, issue);
+  addLog('✗ Worker error: ' + issue);
+  return false;
 }
 
 // TEST 4-6: Notion DBs via Worker
 async function testNotion(testId, label) {
   setResult(testId, 'pending', 'Probando...');
   addLog('⏳ Probando Notion ' + label + '...');
-  try {
-    const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 10000);
-    const r = await fetch(workerURL + '?action=getAll', { signal: ctrl.signal });
-    const d = await r.json();
-    if (d && d.success !== false && !d.error) {
-      setResult(testId, true, 'Accesible — ' + JSON.stringify(d).slice(0,60));
-      addLog('✓ Notion ' + label + ' OK');
-      return true;
-    } else {
-      setResult(testId, false, 'Error: ' + (d.error || JSON.stringify(d).slice(0,80)));
-      addLog('✗ Notion ' + label + ' error: ' + JSON.stringify(d));
-      return false;
-    }
-  } catch(e) {
-    setResult(testId, false, 'Timeout o error: ' + e.message);
-    addLog('✗ Notion ' + label + ': ' + e.message);
+  const res = await requestWorker('getAll', 10000);
+  if (!res.ok) {
+    setResult(testId, false, describeWorkerFailure(res));
+    addLog('✗ Notion ' + label + ': ' + describeWorkerIssueLong(res));
     return false;
   }
+  const d = res.data;
+  const issue = describePayloadIssue('getAll', d);
+  if (!issue) {
+    setResult(testId, true, 'Accesible — ' + JSON.stringify(d).slice(0,60));
+    addLog('✓ Notion ' + label + ' OK');
+    return true;
+  }
+  setResult(testId, false, issue);
+  addLog('✗ Notion ' + label + ' error: ' + issue);
+  return false;
 }
 
 async function runAllTests() {
@@ -196,7 +244,14 @@ function saveAndTest() {
     addLog('⚠ Escribe la URL del Worker primero');
     return;
   }
-  const url = raw.startsWith('http') ? raw : 'https://' + raw;
+  let url = '';
+  try {
+    url = normalizeWorkerURL(raw);
+  } catch(e) {
+    addLog('✗ URL no valida. Usa la URL base del Worker.');
+    setResult('t2', false, 'URL no valida');
+    return;
+  }
   localStorage.setItem(CFG_KEY, url);
   addLog('✓ URL guardada: ' + url);
   runAllTests();
